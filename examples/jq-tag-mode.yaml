@@ -1,0 +1,55 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Pipeline
+metadata:
+  name: jq-tag-mode
+spec:
+  vertices:
+    - name: in
+      source:
+        generator:
+          rpu: 1
+          duration: 1s
+
+    - name: leoflow-map-jq
+      udf:
+        container:
+          imagePullPolicy: Never
+          image: leoflow
+          command: [ '/leoflow' ]
+          args: [ 'map', 'jq' ]
+          env:
+            - name: JQ_MODE
+              value: tag
+            - name: JQ_EXPRESSION
+              value: |
+                if .Data.value % 2 == 0 then
+                  "even"
+                else
+                  "odd"
+                end
+
+    - name: evens
+      sink:
+        log: {}
+
+    - name: odds
+      sink:
+        log: {}
+
+  edges:
+    - from: in
+      to: leoflow-map-jq
+
+    - from: leoflow-map-jq
+      to: evens
+      conditions:
+        tags:
+          values:
+            - even 
+
+    - from: leoflow-map-jq
+      to: odds
+      conditions:
+        tags:
+          values:
+            - odd

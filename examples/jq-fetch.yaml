@@ -1,0 +1,36 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Pipeline
+metadata:
+  name: jq-fetch
+spec:
+  vertices:
+    - name: in
+      source:
+        generator:
+          rpu: 1
+          duration: 1s
+
+    - name: leoflow-map-jq
+      udf:
+        container:
+          imagePullPolicy: Never
+          image: leoflow
+          command: [ '/leoflow' ]
+          args: [ 'map', 'jq' ]
+          env:
+            - name: JQ_EXPRESSION
+              value: |
+                fetch("https://api.frankfurter.app/latest?from=USD&to=EUR") as $response |
+                { 
+                  "ext_id": (.Data.value | tostring),
+                  "currency_rates": ($response.body | fromjson),
+                  "raw_response": $response
+                }
+    - name: out
+      sink:
+        log: {}
+  edges:
+    - from: in
+      to: leoflow-map-jq
+    - from: leoflow-map-jq
+      to: out
